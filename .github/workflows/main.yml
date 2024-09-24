@@ -1,6 +1,52 @@
-on: push
+name: Flutter CI/CD
+
+on:
+  push:
+    branches: [ main ]  # Adjust this to your main branch name
+
 jobs:
-    first-job:
-        runs-on: ubuntu-latest
-        steps:
-            - run: echo "hello world"
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # Set up Flutter
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '2.5.3'  # Specify the Flutter version you need
+
+      # Install dependencies
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Build the Flutter app for Android
+      - name: Build APK
+        run: flutter build appbundle --release
+
+      # Sign the app bundle
+      - name: Sign App Bundle
+        uses: r0adkll/sign-android-release@v1
+        with:
+          releaseDirectory: build/app/outputs/bundle/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+
+      # Deploy to Google Play Store
+      - name: Deploy to Google Play
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+          packageName: com.yourdomain.yourapp
+          releaseFiles: build/app/outputs/bundle/release/app-release.aab
+          track: production  # Can be 'production', 'beta', 'alpha', 'internal'
+          status: completed
+          # inAppUpdatePriority: 2
+          # userFraction: 0.33
+          # whatsNewDirectory: distribution/whatsnew
+          # mappingFile: build/outputs/mapping/release/mapping.txt
+          # debugSymbols: build/app/intermediates/merged_native_libs/release/out/lib
